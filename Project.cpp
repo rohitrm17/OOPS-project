@@ -2,6 +2,7 @@
 #include <string>
 #include <vector>
 #include <map>
+#include <algorithm>
 #include <time.h>
 
 #define MAXLIMIT 3
@@ -110,12 +111,12 @@ public:
 
     void displayAssignments()
     {
-        cout<<"Course name: "<<courseName;
+        cout<<"\nCourse name: "<<courseName;
         cout<<"\nCourse code: "<<courseCode;
 
         if(Assignments.empty())
         {
-            cout<<"\nNo Assignments !!";
+            cout<<"\n\nNo Assignments !!";
             return ;
         }
         cout<<"\n\nAssignment \t Due date\n";
@@ -148,8 +149,92 @@ public:
         return false;
     }
 };
+// ------------------------------------------------------------------------------------
+
+class Class
+{
+    string classLink;
+public:
+    vector<int> personPresent;
+    string generateLink(int userId)
+    {
+        if(find(personPresent.begin() , personPresent.end() , userId) != personPresent.end())
+        {
+            cout<<"\nYou are present in the class.\n";
+            delay(2);
+            return "";
+        }
+        if(classLink.size() != 0)
+        {
+            cout<<"\nA class is running.\n";
+            delay(2);
+            return "";
+        }
+        classLink = "";
+        char ch='-' , c;
+        int x;
+        for(int i=0 ; i<11 ; i++)
+        {
+            if(i==3 || i==7)
+                classLink += ch;
+            else
+            {
+                x = rand()%26;
+                c = 'a' + x;
+                classLink += c;
+            } 
+        }
+        personPresent.push_back(userId);
+        return classLink;
+    }
+
+    bool joinClass(string link , int userId)
+    {
+        if(find(personPresent.begin() , personPresent.end() , userId) != personPresent.end())
+            return true;
+
+        string temp = classLink;
+        
+        bool validLink = false;
+        
+        temp.erase(temp.begin() + 7 , temp.begin() + 8);
+        temp.erase(temp.begin() + 3 , temp.begin() + 4);
+        
+        if(link==classLink || link==temp)
+        {
+            personPresent.push_back(userId);
+            validLink = true;
+            sort(personPresent.begin() , personPresent.end());
+        }
+        return validLink;
+    }
+
+    void endClass(int userId)
+    {
+        if(classLink.size() == 0)
+        {
+            cout<<"\nClass not yet generated !!";
+            return ;
+        }
+        if(find(personPresent.begin() , personPresent.end() , userId) == personPresent.end())
+        {
+            cout<<"\nYou can not end class. As you have not started this class.";
+            return;
+        }
+        classLink = "";
+        personPresent.clear();
+        cout<<"\nClass ended !!";
+        delay(2);
+    }
+
+};
 
 // ------------------------------------------------------------------------------------
+int ID;
+bool comp(Person *t)
+{
+    return t->getId() == ID;
+}
 
 class ClassRoom
 {
@@ -157,11 +242,12 @@ public:
     vector<Person*> person;
     vector<CourseRoom> courseRoom;
     Authentication authorize;
+    Class currentClass;
     int noOfCourse;
     int noOfStudents;
     ClassRoom()
     {
-        cout<<"Enter no. of courses: ";
+        cout<<"\nEnter no. of courses: ";
         cin>>noOfCourse;
         for(int i=0 ; i<noOfCourse ; i++)
         {
@@ -184,14 +270,33 @@ public:
             authorize.getData(tempStud->getId());
         }
     }
-
-    void attendence()
+    
+    void attendence(int userId)
     {
-        cout<<"Name \t Age \t Unique Id\n";
-        for(int i=0 ; i<person.size() ; i++)
+        if(find(currentClass.personPresent.begin() , currentClass.personPresent.end() , userId) == currentClass.personPresent.end())
         {
-            if(person[i]->type == 2)
-                person[i]->display();
+            cout<<"\nClass not yet generated !!";
+            return ;
+        }
+
+        if(currentClass.personPresent.size() == 0)
+        {
+            cout<<"\nClass not yet generated !!";
+            return ;
+        }
+        if(currentClass.personPresent.size() == 1)
+        {
+            cout<<"\nNo one present !!";
+            return ;
+        }
+        cout<<"\nName \t Age \t Unique Id\n";
+        for(int i=1 ; i<currentClass.personPresent.size() ; i++)
+        {
+            int in;
+            ID = currentClass.personPresent[i];
+            auto it = find_if(person.begin() , person.end() , comp);
+            in = it-person.begin();
+            person[in]->display();
         }
     }
 
@@ -206,21 +311,40 @@ public:
             person[i]->display();
     }
 
+    void generateClassLink(int userId)
+    {
+        int wait = 1;
+        string l = currentClass.generateLink(userId);
+        if(l.size() == 0)
+            return ;
+        cout<<"\nGenerated link: "<<l<<endl;
+        cout<<"\nIf you want to continue enter 0: ";
+        while (wait)
+        {
+            cin>>wait;
+        } 
+    }
+    
+    void endClass(int userId)
+    {
+        currentClass.endClass(userId);
+    }
+
     void assignAssignment(int userId)
     {
         system("cls");
-        cout<<"Your are assigning an assignment\n\n";
+        cout<<"\nYour are assigning an assignment\n\n";
         string docName , dueDate;
-        cout<<"Enter Document name: ";
+        cout<<"\nEnter Document name: ";
         cin>>docName;
-        cout<<"Enter Due Date: ";
+        cout<<"\nEnter Due Date: ";
         cin>>dueDate;
         for(int i=0 ; i<noOfCourse ; i++)
         {
             if(person[i]->getId()==userId)
             {
                 courseRoom[i].Assignments.insert({docName , dueDate});
-                cout<<"Assignment assigned successfully\n";
+                cout<<"\nAssignment assigned successfully\n";
                 delay(2);
                 return;
             }
@@ -233,6 +357,23 @@ public:
         {
             cout<<"\n";
             courseRoom[i].displayAssignments();
+        }
+    }
+
+    void joinClassWithLink(int userId)
+    {
+        string link;
+        cout<<"\nEnter the link: ";
+        cin>>link;
+        if(currentClass.joinClass(link , userId))
+        {
+            cout<<"\nYou joined the class.\n";
+            delay(2);
+        }
+        else
+        {
+            cout<<"\nInvalid link !!\n";
+            delay(2);
         }
     }
 
@@ -257,6 +398,8 @@ int main()
 {
     system("cls");
     
+    srand(time(0));
+
     ClassRoom c;
     
     int choice , userId , count=0;
@@ -290,12 +433,12 @@ int main()
                     count++;
                     if(count == MAXLIMIT)
                     {
-                        cout<<"You have crossed maximum limit !!\n";
+                        cout<<"\nYou have crossed maximum limit !!\n";
                         exit(0);
                     }
                     if(!validUser)
                     {
-                        cout<<"Wrong User Id or Password !!";
+                        cout<<"\nWrong User Id or Password !!";
                         delay(2);
                     }
                 } while (!validUser);
@@ -306,7 +449,9 @@ int main()
                     cout<<"\tWelcome to ABC class room\n\n";
                     cout<<"1. Assign an assignment\n";
                     cout<<"2. View attendence\n";
-                    cout<<"3. Logout\n";
+                    cout<<"3. Generate class link\n";
+                    cout<<"4. End the class\n";
+                    cout<<"5. Logout\n";
                     cout<<"Enter your choice: ";
                     cin>>choice;
                     switch (choice)
@@ -315,16 +460,23 @@ int main()
                             c.assignAssignment(userId);
                             break;
                     case 2:
-                            c.attendence();
+                            c.attendence(userId);
                             delay(2);
                             break;
                     case 3:
+                            c.generateClassLink(userId);
+                            break;
+                    case 4:
+                            c.endClass(userId);
+                            break;
+                    case 5:
                             logout = true;
                             cout<<"\nLogged Out Successfully";
                             delay(2);
                             break;
                     default:
-                            cout<<"Wrong choice !!\n";
+                            cout<<"\nWrong choice !!\n";
+                            delay(2);
                     }
                 }
                 logout = false;
@@ -347,12 +499,12 @@ int main()
                     count++;
                     if(count == MAXLIMIT)
                     {
-                        cout<<"You have crossed maximum limit !!\n";
+                        cout<<"\nYou have crossed maximum limit !!\n";
                         exit(0);
                     }
                     if(!validUser)
                     {
-                        cout<<"Wrong User Id or Password !!";
+                        cout<<"\nWrong User Id or Password !!";
                         delay(2);
                     }
                 } while (!validUser);
@@ -363,7 +515,8 @@ int main()
                     cout<<"\tWelcome to ABC class room\n\n";
                     cout<<"1. Check for assigned assignments\n";
                     cout<<"2. Courses Enrolled\n";
-                    cout<<"3. Logout\n";
+                    cout<<"3. Join class\n";
+                    cout<<"4. Logout\n";
                     cout<<"Enter your choice: ";
                     cin>>choice;
                     switch (choice)
@@ -374,25 +527,32 @@ int main()
                             break;
                     case 2:
                             c.coursesEnrolled();
+                            delay(3);
                             break;
                     case 3:
+                            c.joinClassWithLink(userId);
+                            break;
+                    case 4:
                             logout = true;
                             cout<<"\nLogged Out Successfully";
                             delay(2);
                             break;
                     default:
-                            cout<<"Wrong choice !!\n";
+                            cout<<"\nWrong choice !!\n";
+                            delay(2);
                     }
                 }
                 logout = false;
                 choice = 2;
                 break;
         case 3:
-                cout<<"App closed !!\n";
+                cout<<"\n\tApp closed !!\n";
                 exit(0);
         default:
-                cout<<"Wrong choice !!\n";
+                cout<<"\nWrong choice !!\n";
+                delay(2);
         }
     }
+    cout<<endl<<endl;
     return 0;
 }
